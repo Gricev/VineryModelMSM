@@ -1,0 +1,17 @@
+# Виртуальное окружение
+.venv/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Базы данных SQLite (генерируются при запуске)
+*.db
+
+# Датасет (большие медиа/кадры — не в git)
+dataset/
+
+# IDE
+.idea/
+.vscode/
