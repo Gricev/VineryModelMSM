@@ -13,8 +13,8 @@
 Счёт лоз вдоль ряда даёт камере роль «линейки»: каждый новый ствол = следующий
 куст (см. синхронизатор, резолв слота по track_id/marker_code/координате).
 
-Сейчас это интерфейс-заглушка. Подключите модели в `detect()`:
-например YOLOv8 + встроенный трекер (model.track(...)), который сразу даёт track_id.
+Веса обучаются модулем vinery.training.train_trunk. Без model_path трекер
+работает как «нет детекций» (None) — удобно для каркаса и тестов без torch.
 """
 from __future__ import annotations
 
@@ -22,36 +22,60 @@ from typing import Optional
 
 from .models import BushEvent, Frame
 
+# Трекер для инференса (присвоение track_id). bytetrack — стабильный дефолт;
+# при частых перекрытиях стволов попробуйте 'botsort.yaml'.
+DEFAULT_TRACKER = "bytetrack.yaml"
+
 
 class BushTracker:
     """Детектор и трекер ствола лозы (камера 1). Один ствол на куст -> 1:1 с кустом."""
 
-    def __init__(self, model_path: Optional[str] = None, conf: float = 0.5):
+    def __init__(self, model_path: Optional[str] = None, conf: float = 0.5,
+                 tracker: str = DEFAULT_TRACKER):
         self.conf = conf
+        self.tracker = tracker
         self.model = None
         if model_path:
             self._load(model_path)
 
     def _load(self, model_path: str) -> None:
-        # from ultralytics import YOLO
-        # self.model = YOLO(model_path)   # модель обучена на класс 'лоза/ствол'
-        raise NotImplementedError(
-            "Подключите модель детекции ЛОЗЫ (ствола) для камеры 1. "
-            "Рекомендация: YOLOv8 с трекингом — model.track(frame, persist=True)."
-        )
+        try:
+            from ultralytics import YOLO
+        except ImportError as e:
+            raise RuntimeError(
+                "Не установлен ultralytics. Установите: pip install ultralytics") from e
+        self.model = YOLO(model_path)   # веса детектора ствола (класс 'vine_trunk')
 
     def detect(self, frame: Frame) -> Optional[BushEvent]:
-        """Вернуть BushEvent, если в кадре есть ствол лозы (с устойчивым track_id).
+        """Вернуть BushEvent для ствола, мимо которого едем СЕЙЧАС (ближайшего к
+        центру кадра), с устойчивым track_id. Если ствола нет — None.
 
         track_id ствола = личность куста в пределах прохода (лоза ↔ куст 1:1).
-        Если ствола в кадре нет — вернуть None.
+        Оценку болезни лозы (vine_health) добавит отдельная модель на кропе ствола.
         """
         if self.model is None:
             return None
-        # results = self.model.track(frame.image, persist=True, conf=self.conf)
-        # Выбрать ствол, пересекающий центр кадра (куст, мимо которого едем сейчас);
-        # track_id = results...id ствола; bbox — рамка ствола.
-        # vine = self.vine_model(frame.image)  # болезнь той же лозы по этому кадру
-        # return BushEvent(t=frame.t, track_id=track_id, bbox=(x, y, w, h), confidence=...,
-        #                  vine_health={'disease_code': 'esca', 'severity': 0.3, 'confidence': 0.8})
-        raise NotImplementedError
+
+        # persist=True — трекер держит состояние между кадрами потока.
+        results = self.model.track(frame.image, persist=True, conf=self.conf,
+                                   tracker=self.tracker, verbose=False)
+        if not results:
+            return None
+        boxes = results[0].boxes
+        if boxes is None or len(boxes) == 0 or boxes.id is None:
+            return None
+
+        # выбрать ствол, ближайший к центру кадра по горизонтали
+        h, w = results[0].orig_shape  # (height, width)
+        xywh = boxes.xywh.tolist()    # [cx, cy, bw, bh] в пикселях
+        confs = boxes.conf.tolist()
+        ids = boxes.id.int().tolist()
+        center_x = w / 2.0
+        best = min(range(len(xywh)), key=lambda i: abs(xywh[i][0] - center_x))
+
+        cx, cy, bw, bh = xywh[best]
+        return BushEvent(
+            t=frame.t, track_id=int(ids[best]),
+            bbox=(float(cx), float(cy), float(bw), float(bh)),
+            confidence=float(confs[best]),
+        )
