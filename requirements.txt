@@ -12,6 +12,10 @@ pillow>=10.0
 # torch>=2.2
 # timm — классификаторы сорта/болезни и регрессор зрелости (cam2).
 # timm>=1.0
+# SAM2 — авто-предразметка стволов (vinery.training.sam2_prelabel): маска -> YOLO-бокс.
+# Тянет torch; гоните на GPU. Конвертация маска->бокс и её тест работают без них.
+# torch>=2.2
+# sam2 @ git+https://github.com/facebookresearch/sam2.git
 
 # БД: SQLite встроен в стандартную библиотеку Python (модуль sqlite3),
 # отдельная установка не нужна. Для перехода на PostgreSQL:

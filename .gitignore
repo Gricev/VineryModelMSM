@@ -12,6 +12,12 @@ __pycache__/
 # Датасет (большие медиа/кадры — не в git)
 dataset/
 
+# Артефакты обучения (веса, графики, прогоны ultralytics)
+runs/
+weights/
+*.pt
+roboflow_export/
+
 # IDE
 .idea/
 .vscode/

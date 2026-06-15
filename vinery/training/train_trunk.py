@@ -72,7 +72,8 @@ def train(cfg: TrunkTrainConfig, *, build: bool = False,
     results = model.train(
         data=str(data_yaml.resolve()),
         epochs=cfg.epochs, imgsz=cfg.imgsz, batch=cfg.batch,
-        device=cfg.device, project=cfg.project, name=cfg.name, seed=cfg.seed,
+        device=cfg.device, project=str(Path(cfg.project).resolve()),
+        name=cfg.name, seed=cfg.seed,
     )
     best = Path(results.save_dir) / "weights" / "best.pt"
     print(f"Готово. Лучшие веса: {best}")

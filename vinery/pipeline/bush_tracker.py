@@ -18,21 +18,26 @@
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from .models import BushEvent, Frame
 
-# Трекер для инференса (присвоение track_id). bytetrack — стабильный дефолт;
-# при частых перекрытиях стволов попробуйте 'botsort.yaml'.
-DEFAULT_TRACKER = "bytetrack.yaml"
+# Трекер для инференса (присвоение track_id). По умолчанию — настроенный под лозу
+# BoT-SORT (см. botsort_vine.yaml рядом с модулем): длиннее track_buffer и выше
+# new_track_thresh, чтобы ствол реже переоткрывался под новым id. Передайте имя
+# встроенного ('bytetrack.yaml') или путь к своему yaml, чтобы переопределить.
+DEFAULT_TRACKER = str(Path(__file__).with_name("botsort_vine.yaml"))
 
 
 class BushTracker:
     """Детектор и трекер ствола лозы (камера 1). Один ствол на куст -> 1:1 с кустом."""
 
     def __init__(self, model_path: Optional[str] = None, conf: float = 0.5,
-                 tracker: str = DEFAULT_TRACKER):
+                 iou: float = 0.5, tracker: str = DEFAULT_TRACKER):
         self.conf = conf
+        self.iou = iou          # порог NMS: ниже дефолтного (0.7) -> жёстче давит
+                                # дубли-боксы на одном стволе ("задетектил дважды")
         self.tracker = tracker
         self.model = None
         if model_path:
@@ -58,7 +63,7 @@ class BushTracker:
 
         # persist=True — трекер держит состояние между кадрами потока.
         results = self.model.track(frame.image, persist=True, conf=self.conf,
-                                   tracker=self.tracker, verbose=False)
+                                   iou=self.iou, tracker=self.tracker, verbose=False)
         if not results:
             return None
         boxes = results[0].boxes

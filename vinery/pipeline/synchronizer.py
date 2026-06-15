@@ -103,12 +103,12 @@ class Synchronizer:
     # --------------------------------------------------------- входящие события
     def on_bush(self, ev: BushEvent) -> None:
         """Камера 1 сообщает: в кадре куст с данным track_id."""
-        if self._open and self._open.track_id == ev.track_id:
+        if self._open is not None and self._continues_open(ev):
             self._open.t_end = ev.t
             self._open.bush_frames.append(ev)
             return
 
-        # сменился куст -> закрыть предыдущее наблюдение
+        # новый куст -> закрыть предыдущее наблюдение
         if self._open:
             self._flush()
 
@@ -121,6 +121,34 @@ class Synchronizer:
             track_id=ev.track_id, anchor=anchor,
             t_start=ev.t, t_end=ev.t, bush_frames=[ev],
         )
+
+    def _continues_open(self, ev: BushEvent) -> bool:
+        """Продолжает ли событие ТЕКУЩЕЕ открытое наблюдение (тот же физический куст)?
+
+        Тот же track_id -> всегда да (непрерывный трек = один куст; не дробим из-за
+        дрожания слота на границе бина). Если track_id СМЕНИЛСЯ — это либо новый
+        куст, либо трекер переоткрыл/задвоил тот же ствол под новым id; сливаем в
+        текущий куст ТОЛЬКО если физический якорь (метка/координата) даёт тот же
+        слот. Без якоря (fallback) смена track_id трактуется как новый куст —
+        сохраняется прежнее поведение и инвариант test_anchoring.
+        """
+        open_ = self._open
+        if ev.track_id == open_.track_id:
+            return True
+        slot = self._slot_only(ev)
+        return slot is not None and slot == open_.anchor.slot
+
+    def _slot_only(self, ev: BushEvent) -> Optional[int]:
+        """Слот куста по физическому якорю БЕЗ побочных эффектов (не трогает
+        запасной счётчик _next_fallback). Зеркалит приоритет _resolve_anchor
+        (метка > координата). None — если якоря нет, слот определить нечем."""
+        if ev.marker_code:
+            digits = re.findall(r"\d+", ev.marker_code)
+            return int(digits[-1]) if digits else None
+        if self.localizer is not None:
+            pos = self.localizer.localize(ev.t).position_m
+            return max(1, round(pos / self.bush_spacing_m) + 1)
+        return None
 
     def on_canopy(self, res: CanopyResult) -> None:
         """Камера 2 сообщает признаки. Привязываются к текущему открытому кусту."""

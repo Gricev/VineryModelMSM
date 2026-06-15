@@ -43,5 +43,5 @@ class CanopyResult:
     leaf_health: Optional[dict] = None          # {'disease_code','severity','confidence'}
     inflorescence_stage: Optional[dict] = None  # {'stage_code','confidence'}
     cluster_ripeness: Optional[dict] = None      # {'ripeness_pct','brix_estimate','confidence'}
-    cluster_health: Optional[dict] = None        # {'disease_code','severity','confidence'} болезнь грозди
+    cluster_health: Optional[dict] = None        # {'disease_code','severity','confidence'} болезнь репрод. органа (соцветие+гроздь)
     frame_path: Optional[str] = None

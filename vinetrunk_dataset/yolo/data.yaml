@@ -1,0 +1,5 @@
+path: C:/Users/Inzhener/PycharmProjects/VineryMSM/vinetrunk_dataset/yolo
+train: train/images
+val: valid/images
+names:
+  0: vine_trunk

@@ -115,11 +115,11 @@ CREATE TABLE IF NOT EXISTS cluster_ripeness (   -- зрелость ГРОЗДИ
     frame_id       INTEGER REFERENCES frame(id)
 );
 
-CREATE TABLE IF NOT EXISTS cluster_health (    -- болезнь ГРОЗДИ (камера 2, сезонно)
+CREATE TABLE IF NOT EXISTS cluster_health (    -- болезнь РЕПРОД. ОРГАНА: соцветие+гроздь (камера 2, сезонно)
     id             INTEGER PRIMARY KEY,
     observation_id INTEGER NOT NULL REFERENCES observation(id),
-    disease_code   TEXT NOT NULL,           -- 'healthy','botrytis','sour_rot','berry_oidium'
-    severity       REAL,                    -- 0..1 доля поражённых ягод
+    disease_code   TEXT NOT NULL,           -- 'healthy','botrytis','sour_rot','berry_oidium','mildew' (mildew — на соцветии)
+    severity       REAL,                    -- 0..1 доля поражённой площади органа (площадь маски поражения / площадь маски органа)
     confidence     REAL,
     frame_id       INTEGER REFERENCES frame(id)
 );
